@@ -1,0 +1,360 @@
+import React, { useState, useEffect, useRef } from 'react';
+import SuperTable from './components/SuperTable';
+import AlignedGoalDropdown from './components/AlignedGoalDropdown';
+import InteractiveBulletPoint from './components/InteractiveBulletPoint';
+import FilterControls from './components/FilterControls';
+import PreviewModal from './components/PreviewModal';
+
+interface TableRow {
+  id: string;
+  fundName: string;
+  owner: string;
+  typeOfRollover: string;
+}
+
+interface BulletPointState {
+  id: string;
+  text: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
+function App() {
+  const [tableRows, setTableRows] = useState<TableRow[]>([
+    { id: '1', fundName: '', owner: '', typeOfRollover: '' }
+  ]);
+  
+  const [alignedGoal, setAlignedGoal] = useState<string>('');
+  const [showRejected, setShowRejected] = useState<boolean>(false);
+  const [showOnlyPending, setShowOnlyPending] = useState<boolean>(false);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [rejectingItems, setRejectingItems] = useState<Set<string>>(new Set());
+  const [interactionMode, setInteractionMode] = useState<'mouse' | 'keyboard'>('mouse');
+  
+  // Focus management
+  const [currentFocusIndex, setCurrentFocusIndex] = useState<number>(0);
+  const focusableRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+  const [focusableElements, setFocusableElements] = useState<string[]>([]);
+
+  const benefitsBullets: BulletPointState[] = [
+    {
+      id: 'benefit-1',
+      text: 'Consolidating these funds will simplify the administration of your superannuation. It will be easier to manage and keep track of your investments to ensure your superannuation is invested in line with your long-term goals and objectives.',
+      status: 'pending'
+    },
+    {
+      id: 'benefit-2', 
+      text: 'You would like to structure your personal insurances via superannuation; however, your current funds do not provide adequate cover.',
+      status: 'pending'
+    },
+    {
+      id: 'benefit-3',
+      text: 'You can transfer your existing insurance cover to your new superannuation fund without having to provide further health evidence or undergo any further underwriting. Please note, that your insurance premiums will be recalculated based on your current personal circumstances.',
+      status: 'pending'
+    },
+    {
+      id: 'benefit-4',
+      text: 'A portion will be retained in your existing superannuation fund to maintain your existing insurance cover.',
+      status: 'pending'
+    }
+  ];
+
+  const considerationsBullets: BulletPointState[] = [
+    {
+      id: 'consideration-1',
+      text: 'When your funds are rolled over, there may be a period of time where your funds are not fully invested. During this time, your funds will not benefit from any market upside or, conversely, be subject to any market falls during this period.',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-2',
+      text: 'You should inform your employer to direct your future superannuation contributions to the new fund.',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-3',
+      text: 'Any accrued administration fees, risk insurance premiums, applicable capital gains and superannuation fund tax, will be deducted from your account balance prior to the transfer taking place.',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-4',
+      text: 'If you have made personal contributions for which you wish to claim a tax deduction you must lodge a notice of deductibility form with your superannuation fund before you rollover your funds.',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-5',
+      text: 'We note your current superannuation fund has existing insurance cover. You should review your insurance needs and ensure that any replacement covers are in place prior to closing your existing superannuation fund. You may have to provide further health evidence or undergo further underwriting to obtain insurance cover in the recommended fund.',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-6',
+      text: 'You may lose some, or all, of the retirement bonus that may apply upon the commencement of a retirement income stream in future. The amount of bonus that you will lose depends on a range of factors and is determined on an individual basis by your fund\'s provider.',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-7',
+      text: 'Transaction costs apply when redeeming investments or switching superannuation funds. For more information, please refer to the relevant Product Disclosure Statement (PDS).',
+      status: 'pending'
+    },
+    {
+      id: 'consideration-8',
+      text: 'Capital gains tax may be payable on the growth of investment when sold. Where a capital loss is realised on an investment, this loss may be carried forward to offset against future capital gains within the portfolio. More detailed information on the estimated capital gains tax liability will be provided later in this document.',
+      status: 'pending'
+    }
+  ];
+
+  const [benefitsStates, setBenefitsStates] = useState<BulletPointState[]>(benefitsBullets);
+  const [considerationsStates, setConsiderationsStates] = useState<BulletPointState[]>(considerationsBullets);
+
+  // Helper functions for managing rejecting state
+  const startRejecting = (id: string) => {
+    setRejectingItems(prev => new Set(prev).add(id));
+  };
+
+  const stopRejecting = (id: string) => {
+    setRejectingItems(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
+  };
+
+  // Track interaction mode for focus priority
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only switch to keyboard mode for navigation keys
+      if (e.key === 'Tab' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter') {
+        setInteractionMode('keyboard');
+      }
+    };
+
+    const handleMouseMove = () => {
+      setInteractionMode('mouse');
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
+  // Update focusable elements list when data changes
+  useEffect(() => {
+    const elements: string[] = [];
+    
+    // Table elements
+    tableRows.forEach((row, index) => {
+      elements.push(`table-input-${row.id}`);
+      elements.push(`table-owner-${row.id}`);
+      elements.push(`table-rollover-${row.id}`);
+    });
+    
+    // Add row button
+    elements.push('add-row-button');
+    
+    // Aligned goal dropdown
+    elements.push('aligned-goal-dropdown');
+    
+    // Bullet points
+    benefitsStates.forEach(bullet => {
+      if (bullet.status !== 'rejected' || showRejected) {
+        elements.push(`bullet-${bullet.id}`);
+      }
+    });
+    
+    considerationsStates.forEach(bullet => {
+      if (bullet.status !== 'rejected' || showRejected) {
+        elements.push(`bullet-${bullet.id}`);
+      }
+    });
+    
+    setFocusableElements(elements);
+  }, [tableRows, benefitsStates, considerationsStates, showRejected]);
+
+  // Focus management functions
+  const setFocusableRef = (key: string, element: HTMLElement | null) => {
+    focusableRefs.current[key] = element;
+  };
+
+  const focusElement = (elementKey: string) => {
+    const element = focusableRefs.current[elementKey];
+    if (element) {
+      element.focus();
+      const index = focusableElements.indexOf(elementKey);
+      if (index >= 0) {
+        setCurrentFocusIndex(index);
+      }
+    }
+  };
+
+  // Global Tab key handler for focus trapping
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && focusableElements.length > 0) {
+        e.preventDefault();
+        
+        const nextIndex = e.shiftKey 
+          ? (currentFocusIndex - 1 + focusableElements.length) % focusableElements.length
+          : (currentFocusIndex + 1) % focusableElements.length;
+        
+        const nextElementKey = focusableElements[nextIndex];
+        focusElement(nextElementKey);
+      }
+    };
+
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [currentFocusIndex, focusableElements]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto bg-white shadow-lg p-8">
+        
+        {/* Filter Controls */}
+        <FilterControls 
+          showRejected={showRejected}
+          setShowRejected={setShowRejected}
+          showOnlyPending={showOnlyPending}
+          setShowOnlyPending={setShowOnlyPending}
+          onPreview={() => setShowPreview(true)}
+        />
+
+        {/* Main Heading */}
+        <h1 className="font-tahoma text-lg font-normal text-black mb-4">
+          Consolidate your superannuation funds
+        </h1>
+
+        {/* Subtitle */}
+        <p className="font-tahoma text-sm text-black mb-6">
+          We recommend you consolidate your superannuation funds as listed below.
+        </p>
+
+        {/* Interactive Table */}
+        <SuperTable 
+          rows={tableRows}
+          setRows={setTableRows}
+          setFocusableRef={setFocusableRef}
+        />
+
+        {/* Section Divider */}
+        <div className="flex items-center my-8">
+          <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+          <div className="px-4">
+            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+          </div>
+          <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+        </div>
+
+        {/* Aligned Goal Section */}
+        <div className="mt-8 mb-6">
+          <h2 className="font-tahoma text-sm font-bold text-black mb-3">
+            Aligned Goal
+          </h2>
+          <AlignedGoalDropdown 
+            value={alignedGoal}
+            onChange={setAlignedGoal}
+            setFocusableRef={setFocusableRef}
+          />
+        </div>
+
+        {/* Section Divider */}
+        <div className="flex items-center my-8">
+          <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+          <div className="px-4">
+            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+          </div>
+          <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+        </div>
+
+        {/* Why this benefits you */
+        <div className="mb-8">
+          <h2 className="font-tahoma text-sm font-bold text-black mb-4">
+            Why this benefits you
+          </h2>
+          <div className="space-y-2">
+            {benefitsStates
+              .filter(bullet => {
+                if (showOnlyPending) return bullet.status === 'pending';
+                return true;
+              })
+              .map((bullet) => (
+                <InteractiveBulletPoint
+                  key={bullet.id}
+                  id={bullet.id}
+                  text={bullet.text}
+                  status={bullet.status}
+                  showRejected={showRejected}
+                  isRejecting={rejectingItems.has(bullet.id)}
+                  interactionMode={interactionMode}
+                  setFocusableRef={setFocusableRef}
+                  onStartRejecting={startRejecting}
+                  onStopRejecting={stopRejecting}
+                  onStatusChange={(id, status) => {
+                    setBenefitsStates(prev => 
+                      prev.map(b => b.id === id ? { ...b, status } : b)
+                    );
+                  }}
+                />
+              ))}
+          </div>
+        </div>
+
+        {/* Section Divider */}
+        <div className="flex items-center my-8">
+          <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+          <div className="px-4">
+            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+          </div>
+          <div className="flex-grow h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent"></div>
+        </div>
+
+        {/* Things you should consider */
+        <div className="mb-8">
+          <h2 className="font-tahoma text-sm font-bold text-black mb-4">
+            Things you should consider
+          </h2>
+          <div className="space-y-2">
+            {considerationsStates
+              .filter(bullet => {
+                if (showOnlyPending) return bullet.status === 'pending';
+                return true;
+              })
+              .map((bullet) => (
+                <InteractiveBulletPoint
+                  key={bullet.id}
+                  id={bullet.id}
+                  text={bullet.text}
+                  status={bullet.status}
+                  showRejected={showRejected}
+                  isRejecting={rejectingItems.has(bullet.id)}
+                  interactionMode={interactionMode}
+                  setFocusableRef={setFocusableRef}
+                  onStartRejecting={startRejecting}
+                  onStopRejecting={stopRejecting}
+                  onStatusChange={(id, status) => {
+                    setConsiderationsStates(prev => 
+                      prev.map(b => b.id === id ? { ...b, status } : b)
+                    );
+                  }}
+                />
+              ))}
+          </div>
+        </div>
+
+        {/* Preview Modal */}
+        {showPreview && (
+          <PreviewModal
+            tableRows={tableRows}
+            alignedGoal={alignedGoal}
+            benefitsStates={benefitsStates}
+            considerationsStates={considerationsStates}
+            onClose={() => setShowPreview(false)}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
