@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface InteractiveBulletPointProps {
   id: string;
   text: string;
+  customContent?: React.ReactNode;
   summary?: string;
   status: 'pending' | 'approved' | 'rejected';
   onStatusChange: (id: string, status: 'pending' | 'approved' | 'rejected') => void;
@@ -30,6 +31,7 @@ interface InteractiveBulletPointProps {
 const InteractiveBulletPoint: React.FC<InteractiveBulletPointProps> = ({ 
   id, 
   text, 
+  customContent,
   summary,
   status, 
   onStatusChange,
@@ -257,7 +259,7 @@ const InteractiveBulletPoint: React.FC<InteractiveBulletPointProps> = ({
             </div>
           )}
           <p className={summary ? "text-gray-700" : ""}>
-            {text}
+            {customContent || text}
           </p>
         </div>
 
