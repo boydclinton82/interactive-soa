@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import VariableBox from './VariableBox';
 
 interface InteractiveBulletPointProps {
   id: string;
@@ -25,6 +26,9 @@ interface InteractiveBulletPointProps {
   selectedCount?: number;
   isBulkApproving?: boolean;
   isBulkRejecting?: boolean;
+  // Interactive text props
+  interactiveValues?: {[key: string]: string};
+  onInteractiveValueChange?: (id: string, value: string) => void;
 }
 
 const InteractiveBulletPoint: React.FC<InteractiveBulletPointProps> = ({ 
@@ -50,11 +54,56 @@ const InteractiveBulletPoint: React.FC<InteractiveBulletPointProps> = ({
   onBulkStatusUpdate,
   selectedCount = 0,
   isBulkApproving = false,
-  isBulkRejecting = false
+  isBulkRejecting = false,
+  interactiveValues = {},
+  onInteractiveValueChange
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+
+  // Function to render text with interactive elements
+  const renderTextWithInteractive = (text: string) => {
+    if (id === 'loan-benefit-4') {
+      // This will free up cash flow of $XXX p/frequency of which can be used to meet your expenditure and other objectives.
+      return (
+        <>
+          This will free up cash flow of{' '}
+          <VariableBox
+            number={4}
+            value={interactiveValues['benefit4-amount'] || ''}
+            type="currency"
+            placeholder="$XXX"
+          />
+          {' '}p/
+          <VariableBox
+            number={5}
+            value={interactiveValues['benefit4-frequency'] || ''}
+            type="frequency"
+            placeholder="frequency"
+          />
+          {' of which can be used to meet your expenditure and other objectives.'}
+        </>
+      );
+    } else if (id === 'loan-benefit-5') {
+      // Altering the repayment frequency on your mortgage from monthly to fortnightly/weekly will increase...
+      return (
+        <>
+          Altering the repayment frequency on your mortgage from monthly to{' '}
+          <VariableBox
+            number={5}
+            value={interactiveValues['benefit5-frequency'] || ''}
+            type="frequency"
+            placeholder="fortnightly/weekly"
+          />
+          {' will increase the number of repayments you make each year which may help reduce the amount of interest paid over the life of the loan and repay your loan sooner.'}
+        </>
+      );
+    }
+    
+    // Default text rendering
+    return text;
+  };
 
   const handleApprove = () => {
     setIsApproving(true);
@@ -257,7 +306,7 @@ const InteractiveBulletPoint: React.FC<InteractiveBulletPointProps> = ({
             </div>
           )}
           <p className={summary ? "text-gray-700" : ""}>
-            {text}
+            {renderTextWithInteractive(text)}
           </p>
         </div>
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import VariableBox from './VariableBox';
 
 interface TableRow {
   id: string;
@@ -31,6 +32,8 @@ interface PreviewModalProps {
   considerationsStates: BulletPointState[];
   benefitsOrder: string[];
   considerationsOrder: string[];
+  activeStrategy: 'consolidation' | 'loanRepayment';
+  interactiveValues?: {[key: string]: string};
   onClose: () => void;
 }
 
@@ -41,10 +44,57 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   considerationsStates,
   benefitsOrder,
   considerationsOrder,
+  activeStrategy,
+  interactiveValues = {},
   onClose
 }) => {
   const [showComplianceIssues, setShowComplianceIssues] = useState(false);
   const [complianceIssues, setComplianceIssues] = useState<ComplianceIssue[]>([]);
+
+  // Function to render text with interactive elements for loan repayment strategy
+  const renderTextWithInteractive = (text: string, id: string) => {
+    if (activeStrategy !== 'loanRepayment') return text;
+
+    if (id === 'loan-benefit-4') {
+      // This will free up cash flow of $XXX p/frequency of which can be used to meet your expenditure and other objectives.
+      return (
+        <>
+          This will free up cash flow of{' '}
+          <VariableBox
+            number={4}
+            value={interactiveValues['benefit4-amount'] || ''}
+            type="currency"
+            placeholder="$XXX"
+          />
+          {' '}p/
+          <VariableBox
+            number={5}
+            value={interactiveValues['benefit4-frequency'] || ''}
+            type="frequency"
+            placeholder="frequency"
+          />
+          {' of which can be used to meet your expenditure and other objectives.'}
+        </>
+      );
+    } else if (id === 'loan-benefit-5') {
+      // Altering the repayment frequency on your mortgage from monthly to fortnightly/weekly will increase...
+      return (
+        <>
+          Altering the repayment frequency on your mortgage from monthly to{' '}
+          <VariableBox
+            number={5}
+            value={interactiveValues['benefit5-frequency'] || ''}
+            type="frequency"
+            placeholder="fortnightly/weekly"
+          />
+          {' will increase the number of repayments you make each year which may help reduce the amount of interest paid over the life of the loan and repay your loan sooner.'}
+        </>
+      );
+    }
+    
+    // Default text rendering
+    return text;
+  };
   // Helper functions for ordered items (same as in App.tsx)
   const getOrderedBenefits = () => {
     const orderedItems = benefitsOrder
@@ -261,16 +311,45 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
           <div className="p-8 bg-white">
             {/* Main Heading */}
             <h1 className="font-tahoma text-lg font-normal text-black mb-4">
-              Consolidate your superannuation funds
+              {activeStrategy === 'consolidation' 
+                ? 'Consolidate your superannuation funds' 
+                : 'Alter your loan repayments'}
             </h1>
 
             {/* Subtitle */}
             <p className="font-tahoma text-sm text-black mb-6">
-              We recommend you consolidate your superannuation funds as listed below.
+              {activeStrategy === 'consolidation'
+                ? 'We recommend you consolidate your superannuation funds as listed below.'
+                : (
+                  <>
+                    After reviewing your cashflow position, we recommend you reduce your debt repayments to{' '}
+                    <VariableBox
+                      number={1}
+                      value={interactiveValues['subtitle-amount'] || ''}
+                      type="currency"
+                      placeholder="$XXX"
+                    />
+                    {' '}per{' '}
+                    <VariableBox
+                      number={2}
+                      value={interactiveValues['subtitle-frequency'] || ''}
+                      type="frequency"
+                      placeholder="month/fortnight/week"
+                    />
+                    {' '}into your{' '}
+                    <VariableBox
+                      number={3}
+                      value={interactiveValues['subtitle-loan-type'] || ''}
+                      type="text"
+                      placeholder="XXX loan"
+                    />
+                    .
+                  </>
+                )}
             </p>
 
-            {/* Table Preview */}
-            {populatedRows.length > 0 && (
+            {/* Table Preview - only show for consolidation strategy */}
+            {activeStrategy === 'consolidation' && populatedRows.length > 0 && (
               <div className="mb-6">
                 <table className="w-full border-collapse">
                   <thead>
@@ -335,7 +414,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                         }`}>
                           <span className="font-tahoma text-sm text-black mt-0.5">•</span>
                           <p className="font-tahoma text-sm text-black leading-relaxed">
-                            {benefit.text}
+                            {renderTextWithInteractive(benefit.text, benefit.id)}
                           </p>
                         </div>
                         {hasIssue && issue && (
@@ -389,7 +468,7 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                         }`}>
                           <span className="font-tahoma text-sm text-black mt-0.5">•</span>
                           <p className="font-tahoma text-sm text-black leading-relaxed">
-                            {consideration.text}
+                            {renderTextWithInteractive(consideration.text, consideration.id)}
                           </p>
                         </div>
                         {hasIssue && issue && (

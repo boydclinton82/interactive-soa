@@ -28,6 +28,9 @@ interface SortableBulletPointProps {
   selectedCount?: number;
   isBulkApproving?: boolean;
   isBulkRejecting?: boolean;
+  // Interactive text props
+  interactiveValues?: {[key: string]: string};
+  onInteractiveValueChange?: (id: string, value: string) => void;
 }
 
 const SortableBulletPoint: React.FC<SortableBulletPointProps> = (props) => {

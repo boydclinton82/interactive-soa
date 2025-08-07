@@ -22,6 +22,10 @@ import SortableBulletPoint from './components/SortableBulletPoint';
 import InvisibleDropZone from './components/InvisibleDropZone';
 import FilterControls from './components/FilterControls';
 import PreviewModal from './components/PreviewModal';
+import StrategySidebar from './components/StrategySidebar';
+import { StrategyType } from './types/strategies';
+import VariableBox from './components/VariableBox';
+import VariablesModal from './components/VariablesModal';
 
 interface SuperTableRow {
   id: string;
@@ -39,21 +43,34 @@ interface BulletPointState {
 }
 
 function App() {
+  const [activeStrategy, setActiveStrategy] = useState<StrategyType>('consolidation');
   const [superTableRows, setSuperTableRows] = useState<SuperTableRow[]>([]);
   const [showAddRowModal, setShowAddRowModal] = useState<boolean>(false);
   const [showAddItemModal, setShowAddItemModal] = useState<boolean>(false);
   const [addItemSection, setAddItemSection] = useState<'benefits' | 'considerations'>('benefits');
   
   const [alignedGoal, setAlignedGoal] = useState<string>('');
+  const [loanAlignedGoal, setLoanAlignedGoal] = useState<string>('');
   const [showRejected, setShowRejected] = useState<boolean>(false);
   const [showOnlyPending, setShowOnlyPending] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [showVariablesModal, setShowVariablesModal] = useState<boolean>(false);
   const [rejectingItems, setRejectingItems] = useState<Set<string>>(new Set());
   const [interactionMode, setInteractionMode] = useState<'mouse' | 'keyboard'>('mouse');
   const [activeBulletId, setActiveBulletId] = useState<string | null>(null);
   const [selectedBulletIds, setSelectedBulletIds] = useState<Set<string>>(new Set());
   const [bulkApprovingIds, setBulkApprovingIds] = useState<Set<string>>(new Set());
   const [bulkRejectingIds, setBulkRejectingIds] = useState<Set<string>>(new Set());
+  
+  // Interactive text field values
+  const [interactiveValues, setInteractiveValues] = useState<{[key: string]: string}>({
+    'subtitle-amount': '',
+    'subtitle-frequency': '',
+    'subtitle-loan-type': '',
+    'benefit4-amount': '',
+    'benefit4-frequency': '',
+    'benefit5-frequency': ''
+  });
   
   // Focus management
   const [currentFocusIndex, setCurrentFocusIndex] = useState<number>(0);
@@ -62,6 +79,22 @@ function App() {
   
   // Track items being moved to drop zones to disable transition
   const [itemsMovingToDropZone, setItemsMovingToDropZone] = useState<Set<string>>(new Set());
+
+  // Handler for interactive text changes
+  const handleInteractiveValueChange = (id: string, value: string) => {
+    setInteractiveValues(prev => ({
+      ...prev,
+      [id]: value
+    }));
+  };
+
+  // Variables modal handlers
+  const handleVariablesSubmit = (variables: {[key: string]: string}) => {
+    setInteractiveValues(prev => ({
+      ...prev,
+      ...variables
+    }));
+  };
 
   // Drag and drop sensors with permissive configuration
   const sensors = useSensors(
@@ -157,8 +190,79 @@ function App() {
     }
   ];
 
+  // Loan repayment data arrays
+  const loanBenefitsBullets: BulletPointState[] = [
+    {
+      id: 'loan-benefit-1',
+      summary: 'Reduced Interest & Faster Repayment',
+      text: 'By making additional repayments you will reduce the interest over the life of the loan which will help repay the loan sooner.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-benefit-2',
+      summary: 'Interest Rate Protection',
+      text: 'This will also reduce the impact of fluctuating interest rates on your cash flow.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-benefit-3',
+      summary: 'Accelerated Wealth Building',
+      text: 'The quicker the loan is repaid, the sooner you will be able to boost your wealth accumulation plans using the amounts previously directed to loan repayments.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-benefit-4',
+      summary: 'Improved Cash Flow',
+      text: 'This will free up cash flow of $XXX p/frequency of which can be used to meet your expenditure and other objectives.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-benefit-5',
+      summary: 'Payment Frequency Optimization',
+      text: 'Altering the repayment frequency on your mortgage from monthly to fortnightly/weekly will increase the number of repayments you make each year which may help reduce the amount of interest paid over the life of the loan and repay your loan sooner.',
+      status: 'pending'
+    }
+  ];
+
+  const loanConsiderationsBullets: BulletPointState[] = [
+    {
+      id: 'loan-consideration-1',
+      summary: 'Tax Deduction Impact',
+      text: 'The interest expense associated with this loan is tax deductible. Increasing the rate at which you repay this debt will reduce the associated tax deduction, potentially increasing your income tax liability in future financial years. You should discuss these implications with your taxation specialist.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-consideration-2',
+      summary: 'Reduced Cash Flow',
+      text: 'Increasing your repayments means that you will have less cashflow to fund your other expenses. Should you need to access these funds in the future, there may be costs associated with this.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-consideration-3',
+      summary: 'Prepayment Fees & Restrictions',
+      text: 'Some lenders may charge \'prepayment\' or \'early termination\' fees as a result of early repayment and there may be restrictions on additional repayments. Therefore, it is important you consult with your current lender(s) before making a lump sum repayment.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-consideration-4',
+      summary: 'Extended Loan Term Risk',
+      text: 'Decreasing regular repayments will result in a longer loan term and higher ongoing interest charged.',
+      status: 'pending'
+    },
+    {
+      id: 'loan-consideration-5',
+      summary: 'Variable Rate Changes',
+      text: 'An increase in variable rates will result in higher interest being paid over time which will result in a change to the projections provided.',
+      status: 'pending'
+    }
+  ];
+
   const [benefitsStates, setBenefitsStates] = useState<BulletPointState[]>(benefitsBullets);
   const [considerationsStates, setConsiderationsStates] = useState<BulletPointState[]>(considerationsBullets);
+  
+  // Loan repayment states
+  const [loanBenefitsStates, setLoanBenefitsStates] = useState<BulletPointState[]>(loanBenefitsBullets);
+  const [loanConsiderationsStates, setLoanConsiderationsStates] = useState<BulletPointState[]>(loanConsiderationsBullets);
   
   // Order state for drag and drop
   const [benefitsOrder, setBenefitsOrder] = useState<string[]>([
@@ -168,26 +272,51 @@ function App() {
     'consideration-1', 'consideration-2', 'consideration-3', 'consideration-4',
     'consideration-5', 'consideration-6', 'consideration-7', 'consideration-8'
   ]);
+  
+  // Loan repayment order states
+  const [loanBenefitsOrder, setLoanBenefitsOrder] = useState<string[]>([
+    'loan-benefit-1', 'loan-benefit-2', 'loan-benefit-3', 'loan-benefit-4', 'loan-benefit-5'
+  ]);
+  const [loanConsiderationsOrder, setLoanConsiderationsOrder] = useState<string[]>([
+    'loan-consideration-1', 'loan-consideration-2', 'loan-consideration-3', 
+    'loan-consideration-4', 'loan-consideration-5'
+  ]);
 
   // Helper functions for ordered item rendering
   const getOrderedBenefits = () => {
-    const orderedItems = benefitsOrder
-      .map(id => benefitsStates.find(item => item.id === id))
-      .filter((item): item is BulletPointState => item !== undefined);
-    
-    // Add any new items that aren't in the order array yet
-    const unorderedItems = benefitsStates.filter(item => !benefitsOrder.includes(item.id));
-    return [...orderedItems, ...unorderedItems];
+    if (activeStrategy === 'loanRepayment') {
+      const orderedItems = loanBenefitsOrder
+        .map(id => loanBenefitsStates.find(item => item.id === id))
+        .filter((item): item is BulletPointState => item !== undefined);
+      
+      const unorderedItems = loanBenefitsStates.filter(item => !loanBenefitsOrder.includes(item.id));
+      return [...orderedItems, ...unorderedItems];
+    } else {
+      const orderedItems = benefitsOrder
+        .map(id => benefitsStates.find(item => item.id === id))
+        .filter((item): item is BulletPointState => item !== undefined);
+      
+      const unorderedItems = benefitsStates.filter(item => !benefitsOrder.includes(item.id));
+      return [...orderedItems, ...unorderedItems];
+    }
   };
 
   const getOrderedConsiderations = () => {
-    const orderedItems = considerationsOrder
-      .map(id => considerationsStates.find(item => item.id === id))
-      .filter((item): item is BulletPointState => item !== undefined);
-    
-    // Add any new items that aren't in the order array yet
-    const unorderedItems = considerationsStates.filter(item => !considerationsOrder.includes(item.id));
-    return [...orderedItems, ...unorderedItems];
+    if (activeStrategy === 'loanRepayment') {
+      const orderedItems = loanConsiderationsOrder
+        .map(id => loanConsiderationsStates.find(item => item.id === id))
+        .filter((item): item is BulletPointState => item !== undefined);
+      
+      const unorderedItems = loanConsiderationsStates.filter(item => !loanConsiderationsOrder.includes(item.id));
+      return [...orderedItems, ...unorderedItems];
+    } else {
+      const orderedItems = considerationsOrder
+        .map(id => considerationsStates.find(item => item.id === id))
+        .filter((item): item is BulletPointState => item !== undefined);
+      
+      const unorderedItems = considerationsStates.filter(item => !considerationsOrder.includes(item.id));
+      return [...orderedItems, ...unorderedItems];
+    }
   };
 
   // Helper functions for managing rejecting state
@@ -229,19 +358,35 @@ function App() {
       
       // After animation delay, update status
       setTimeout(() => {
-        // Update benefits
-        setBenefitsStates(prev => 
-          prev.map(bullet => 
-            selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
-          )
-        );
+        if (activeStrategy === 'loanRepayment') {
+          // Update loan benefits
+          setLoanBenefitsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
 
-        // Update considerations
-        setConsiderationsStates(prev => 
-          prev.map(bullet => 
-            selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
-          )
-        );
+          // Update loan considerations
+          setLoanConsiderationsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
+        } else {
+          // Update benefits
+          setBenefitsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
+
+          // Update considerations
+          setConsiderationsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
+        }
 
         // Clear animations and selections
         setBulkApprovingIds(new Set());
@@ -258,19 +403,35 @@ function App() {
       
       // After animation delay, update status
       setTimeout(() => {
-        // Update benefits
-        setBenefitsStates(prev => 
-          prev.map(bullet => 
-            selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
-          )
-        );
+        if (activeStrategy === 'loanRepayment') {
+          // Update loan benefits
+          setLoanBenefitsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
 
-        // Update considerations
-        setConsiderationsStates(prev => 
-          prev.map(bullet => 
-            selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
-          )
-        );
+          // Update loan considerations
+          setLoanConsiderationsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
+        } else {
+          // Update benefits
+          setBenefitsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
+
+          // Update considerations
+          setConsiderationsStates(prev => 
+            prev.map(bullet => 
+              selectedBulletIds.has(bullet.id) ? { ...bullet, status } : bullet
+            )
+          );
+        }
       }, 300);
       
       // Clear animations and selections after full animation
@@ -378,8 +539,8 @@ function App() {
     const overId = over.id as string;
 
     // Determine which section the items belong to
-    const isBenefitsItem = (id: string) => id.startsWith('benefit-');
-    const isConsiderationsItem = (id: string) => id.startsWith('consideration-');
+    const isBenefitsItem = (id: string) => id.startsWith('benefit-') || id.startsWith('loan-benefit-');
+    const isConsiderationsItem = (id: string) => id.startsWith('consideration-') || id.startsWith('loan-consideration-');
 
     // Check if dropped on invisible drop zones
     if (overId === 'benefits-drop-zone') {
@@ -387,10 +548,17 @@ function App() {
       setItemsMovingToDropZone(prev => new Set(prev).add(activeId));
       
       // Move to end of benefits section
-      setBenefitsOrder((items) => {
-        const filteredItems = items.filter(id => id !== activeId);
-        return [...filteredItems, activeId];
-      });
+      if (activeStrategy === 'loanRepayment') {
+        setLoanBenefitsOrder((items) => {
+          const filteredItems = items.filter(id => id !== activeId);
+          return [...filteredItems, activeId];
+        });
+      } else {
+        setBenefitsOrder((items) => {
+          const filteredItems = items.filter(id => id !== activeId);
+          return [...filteredItems, activeId];
+        });
+      }
       
       // Reset transition state after a short delay
       setTimeout(() => {
@@ -409,10 +577,17 @@ function App() {
       setItemsMovingToDropZone(prev => new Set(prev).add(activeId));
       
       // Move to end of considerations section
-      setConsiderationsOrder((items) => {
-        const filteredItems = items.filter(id => id !== activeId);
-        return [...filteredItems, activeId];
-      });
+      if (activeStrategy === 'loanRepayment') {
+        setLoanConsiderationsOrder((items) => {
+          const filteredItems = items.filter(id => id !== activeId);
+          return [...filteredItems, activeId];
+        });
+      } else {
+        setConsiderationsOrder((items) => {
+          const filteredItems = items.filter(id => id !== activeId);
+          return [...filteredItems, activeId];
+        });
+      }
       
       // Reset transition state after a short delay
       setTimeout(() => {
@@ -430,17 +605,33 @@ function App() {
     if (active.id !== over.id) {
       // Only allow reordering within the same section
       if (isBenefitsItem(activeId) && isBenefitsItem(overId)) {
-        setBenefitsOrder((items) => {
-          const oldIndex = items.indexOf(activeId);
-          const newIndex = items.indexOf(overId);
-          return arrayMove(items, oldIndex, newIndex);
-        });
+        if (activeStrategy === 'loanRepayment') {
+          setLoanBenefitsOrder((items) => {
+            const oldIndex = items.indexOf(activeId);
+            const newIndex = items.indexOf(overId);
+            return arrayMove(items, oldIndex, newIndex);
+          });
+        } else {
+          setBenefitsOrder((items) => {
+            const oldIndex = items.indexOf(activeId);
+            const newIndex = items.indexOf(overId);
+            return arrayMove(items, oldIndex, newIndex);
+          });
+        }
       } else if (isConsiderationsItem(activeId) && isConsiderationsItem(overId)) {
-        setConsiderationsOrder((items) => {
-          const oldIndex = items.indexOf(activeId);
-          const newIndex = items.indexOf(overId);
-          return arrayMove(items, oldIndex, newIndex);
-        });
+        if (activeStrategy === 'loanRepayment') {
+          setLoanConsiderationsOrder((items) => {
+            const oldIndex = items.indexOf(activeId);
+            const newIndex = items.indexOf(overId);
+            return arrayMove(items, oldIndex, newIndex);
+          });
+        } else {
+          setConsiderationsOrder((items) => {
+            const oldIndex = items.indexOf(activeId);
+            const newIndex = items.indexOf(overId);
+            return arrayMove(items, oldIndex, newIndex);
+          });
+        }
       }
     }
   };
@@ -494,11 +685,18 @@ function App() {
   useEffect(() => {
     const elements: string[] = [];
     
-    // SuperTable2 elements
-    superTableRows.forEach((row) => {
-      elements.push(`super-fund-${row.id}`);
-    });
-    elements.push('super-add-row-button');
+    // SuperTable2 elements (only for consolidation strategy)
+    if (activeStrategy === 'consolidation') {
+      superTableRows.forEach((row) => {
+        elements.push(`super-fund-${row.id}`);
+      });
+      elements.push('super-add-row-button');
+    }
+    
+    // Enter Variables button (only for loan repayment strategy)
+    if (activeStrategy === 'loanRepayment') {
+      elements.push('enter-variables-button');
+    }
     
     // Aligned goal dropdown
     elements.push('aligned-goal-dropdown');
@@ -512,6 +710,7 @@ function App() {
       } else if (!showOnlyPending && !showRejected && bullet.status !== 'rejected') {
         elements.push(`bullet-${bullet.id}`);
       }
+      
     });
     
     getOrderedConsiderations().forEach(bullet => {
@@ -525,7 +724,7 @@ function App() {
     });
     
     setFocusableElements(elements);
-  }, [superTableRows, benefitsStates, considerationsStates, benefitsOrder, considerationsOrder, showRejected, showOnlyPending]);
+  }, [superTableRows, benefitsStates, considerationsStates, benefitsOrder, considerationsOrder, loanBenefitsStates, loanConsiderationsStates, loanBenefitsOrder, loanConsiderationsOrder, activeStrategy, showRejected, showOnlyPending]);
 
 
   // Focus management functions
@@ -690,13 +889,23 @@ function App() {
   }, [currentFocusIndex, focusableElements, showAddRowModal, showAddItemModal]);
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={rectIntersection}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="max-w-4xl mx-auto bg-white shadow-lg p-8">
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Fixed Sidebar */}
+      <StrategySidebar 
+        activeStrategy={activeStrategy}
+        onStrategyChange={setActiveStrategy}
+      />
+      
+      {/* Main Content Area */}
+      <div className="flex-1 ml-72">
+        <div className="py-8">
+          <div className="max-w-4xl mx-auto bg-white shadow-lg p-8">
+            {activeStrategy === 'consolidation' && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                onDragEnd={handleDragEnd}
+              >
         
         {/* Filter Controls */}
         <FilterControls 
@@ -801,6 +1010,8 @@ function App() {
                     selectedCount={selectedBulletIds.size}
                     isBulkApproving={bulkApprovingIds.has(bullet.id)}
                     isBulkRejecting={bulkRejectingIds.has(bullet.id)}
+                    interactiveValues={interactiveValues}
+                    onInteractiveValueChange={handleInteractiveValueChange}
                     onStatusChange={(id, status) => {
                       setBenefitsStates(prev => 
                         prev.map(b => b.id === id ? { ...b, status } : b)
@@ -870,10 +1081,267 @@ function App() {
                     selectedCount={selectedBulletIds.size}
                     isBulkApproving={bulkApprovingIds.has(bullet.id)}
                     isBulkRejecting={bulkRejectingIds.has(bullet.id)}
+                    interactiveValues={interactiveValues}
+                    onInteractiveValueChange={handleInteractiveValueChange}
                     onStatusChange={(id, status) => {
                       setConsiderationsStates(prev => 
                         prev.map(b => b.id === id ? { ...b, status } : b)
-                      );
+                      );                    }}
+                  />
+                ))}
+            </div>
+          </SortableContext>
+          {/* Invisible drop zone for considerations section */}
+          <InvisibleDropZone id="considerations-drop-zone" />
+        </div>
+
+        {/* Add Row Modal */}
+        <AddRowModal
+          isOpen={showAddRowModal}
+          onClose={handleAddRowModalClose}
+          onSubmit={handleAddRowModalSubmit}
+          editingRow={editingRow}
+        />
+
+        {/* Add Item Modal */}
+        <AddItemModal
+          isOpen={showAddItemModal}
+          onClose={handleAddItemModalClose}
+          onSubmit={handleAddItemModalSubmit}
+          title={addItemSection === 'benefits' ? 'Add Benefit' : 'Add Consideration'}
+        />
+
+
+              {/* Preview Modal */}
+              {showPreview && (
+                <PreviewModal
+                  tableRows={superTableRows}
+                  alignedGoal={alignedGoal}
+                  benefitsStates={benefitsStates}
+                  considerationsStates={considerationsStates}
+                  benefitsOrder={benefitsOrder}
+                  considerationsOrder={considerationsOrder}
+                  activeStrategy={activeStrategy}
+                  interactiveValues={interactiveValues}
+                  onClose={() => setShowPreview(false)}
+                />
+              )}
+              </DndContext>
+            )}
+            
+            {activeStrategy === 'loanRepayment' && (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={rectIntersection}
+                onDragEnd={handleDragEnd}
+              >
+        
+        {/* Filter Controls */}
+        <FilterControls 
+          showRejected={showRejected}
+          setShowRejected={setShowRejected}
+          showOnlyPending={showOnlyPending}
+          setShowOnlyPending={setShowOnlyPending}
+          onPreview={() => setShowPreview(true)}
+        />
+
+        {/* Main Heading and Enter Variables Button */}
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="font-tahoma text-lg font-normal text-black">
+            Alter your loan repayments
+          </h1>
+          <button
+            ref={(el) => setFocusableRef('enter-variables-button', el)}
+            onClick={() => setShowVariablesModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors font-tahoma font-medium text-sm"
+          >
+            Enter Variables
+          </button>
+        </div>
+
+        {/* Subtitle */}
+        <p className="font-tahoma text-sm text-black mb-4">
+          After reviewing your cashflow position, we recommend you reduce your debt repayments to{' '}
+          <VariableBox
+            number={1}
+            value={interactiveValues['subtitle-amount']}
+            type="currency"
+            placeholder="$XXX"
+          />
+          {' '}per{' '}
+          <VariableBox
+            number={2}
+            value={interactiveValues['subtitle-frequency']}
+            type="frequency"
+            placeholder="month/fortnight/week"
+          />
+          {' '}into your{' '}
+          <VariableBox
+            number={3}
+            value={interactiveValues['subtitle-loan-type']}
+            type="text"
+            placeholder="XXX loan"
+          />
+          .
+        </p>
+
+        {/* Aligned Goal Section */}
+        <div className="mt-4 mb-4">
+          <h2 className="font-tahoma text-sm font-bold text-black mb-3">
+            Aligned goal
+          </h2>
+          <AlignedGoalDropdown 
+            value={loanAlignedGoal}
+            onChange={setLoanAlignedGoal}
+            setFocusableRef={setFocusableRef}
+          />
+        </div>
+
+        {/* Section Divider */}
+        <div className="my-1">
+          <div className="h-px bg-gray-300"></div>
+        </div>
+
+        {/* Why this benefits you */}
+        <div className="mb-1">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-tahoma text-sm font-bold text-black">
+              Why this benefits you
+            </h2>
+            <AddButton onClick={handleAddBenefitModalOpen} />
+          </div>
+          <SortableContext
+            items={getOrderedBenefits()
+              .filter(bullet => {
+                if (showOnlyPending) return bullet.status === 'pending';
+                if (showRejected) return bullet.status === 'rejected';
+                return bullet.status !== 'rejected';
+              })
+              .map(bullet => bullet.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-1">
+              {getOrderedBenefits()
+                .filter(bullet => {
+                  if (showOnlyPending) return bullet.status === 'pending';
+                  if (showRejected) return bullet.status === 'rejected';
+                  return bullet.status !== 'rejected';
+                })
+                .map((bullet) => (
+                  <SortableBulletPoint
+                    key={bullet.id}
+                    id={bullet.id}
+                    text={bullet.text}
+                    summary={bullet.summary}
+                    status={bullet.status}
+                    showRejected={showRejected}
+                    isRejecting={rejectingItems.has(bullet.id)}
+                    interactionMode={interactionMode}
+                    activeBulletId={activeBulletId}
+                    setActiveBulletId={setActiveBulletId}
+                    setFocusableRef={setFocusableRef}
+                    onElementFocused={handleElementFocused}
+                    onStartRejecting={startRejecting}
+                    onStopRejecting={stopRejecting}
+                    onNavigateNext={navigateToNext}
+                    onNavigateToElement={navigateToElement}
+                    onGetNextElementKey={getNextElementKey}
+                    disableTransition={itemsMovingToDropZone.has(bullet.id)}
+                    isSelected={selectedBulletIds.has(bullet.id)}
+                    onToggleSelection={toggleBulletSelection}
+                    onBulkStatusUpdate={bulkUpdateBulletStatus}
+                    selectedCount={selectedBulletIds.size}
+                    isBulkApproving={bulkApprovingIds.has(bullet.id)}
+                    isBulkRejecting={bulkRejectingIds.has(bullet.id)}
+                    interactiveValues={interactiveValues}
+                    onInteractiveValueChange={handleInteractiveValueChange}
+                    onStatusChange={(id, status) => {
+                      if (activeStrategy === 'loanRepayment') {
+                        setLoanBenefitsStates(prev => 
+                          prev.map(b => b.id === id ? { ...b, status } : b)
+                        );
+                      } else {
+                        setBenefitsStates(prev => 
+                          prev.map(b => b.id === id ? { ...b, status } : b)
+                        );
+                      }
+                    }}
+                  />
+                ))}
+            </div>
+          </SortableContext>
+          {/* Invisible drop zone for benefits section */}
+          <InvisibleDropZone id="benefits-drop-zone" />
+        </div>
+
+        {/* Section Divider */}
+        <div className="my-1">
+          <div className="h-px bg-gray-300"></div>
+        </div>
+
+        {/* Things you should consider */}
+        <div className="mb-1">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-tahoma text-sm font-bold text-black">
+              Things you should consider
+            </h2>
+            <AddButton onClick={handleAddConsiderationModalOpen} />
+          </div>
+          <SortableContext
+            items={getOrderedConsiderations()
+              .filter(bullet => {
+                if (showOnlyPending) return bullet.status === 'pending';
+                if (showRejected) return bullet.status === 'rejected';
+                return bullet.status !== 'rejected';
+              })
+              .map(bullet => bullet.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-1">
+              {getOrderedConsiderations()
+                .filter(bullet => {
+                  if (showOnlyPending) return bullet.status === 'pending';
+                  if (showRejected) return bullet.status === 'rejected';
+                  return bullet.status !== 'rejected';
+                })
+                .map((bullet) => (
+                  <SortableBulletPoint
+                    key={bullet.id}
+                    id={bullet.id}
+                    text={bullet.text}
+                    summary={bullet.summary}
+                    status={bullet.status}
+                    showRejected={showRejected}
+                    isRejecting={rejectingItems.has(bullet.id)}
+                    interactionMode={interactionMode}
+                    activeBulletId={activeBulletId}
+                    setActiveBulletId={setActiveBulletId}
+                    setFocusableRef={setFocusableRef}
+                    onElementFocused={handleElementFocused}
+                    onStartRejecting={startRejecting}
+                    onStopRejecting={stopRejecting}
+                    onNavigateNext={navigateToNext}
+                    onNavigateToElement={navigateToElement}
+                    onGetNextElementKey={getNextElementKey}
+                    disableTransition={itemsMovingToDropZone.has(bullet.id)}
+                    isSelected={selectedBulletIds.has(bullet.id)}
+                    onToggleSelection={toggleBulletSelection}
+                    onBulkStatusUpdate={bulkUpdateBulletStatus}
+                    selectedCount={selectedBulletIds.size}
+                    isBulkApproving={bulkApprovingIds.has(bullet.id)}
+                    isBulkRejecting={bulkRejectingIds.has(bullet.id)}
+                    interactiveValues={interactiveValues}
+                    onInteractiveValueChange={handleInteractiveValueChange}
+                    onStatusChange={(id, status) => {
+                      if (activeStrategy === 'loanRepayment') {
+                        setLoanConsiderationsStates(prev => 
+                          prev.map(b => b.id === id ? { ...b, status } : b)
+                        );
+                      } else {
+                        setConsiderationsStates(prev => 
+                          prev.map(b => b.id === id ? { ...b, status } : b)
+                        );
+                      }
                     }}
                   />
                 ))}
@@ -900,21 +1368,34 @@ function App() {
         />
 
 
-        {/* Preview Modal */}
-        {showPreview && (
-          <PreviewModal
-            tableRows={superTableRows}
-            alignedGoal={alignedGoal}
-            benefitsStates={benefitsStates}
-            considerationsStates={considerationsStates}
-            benefitsOrder={benefitsOrder}
-            considerationsOrder={considerationsOrder}
-            onClose={() => setShowPreview(false)}
-          />
-        )}
+              {/* Variables Modal */}
+              <VariablesModal
+                isOpen={showVariablesModal}
+                onClose={() => setShowVariablesModal(false)}
+                onSubmit={handleVariablesSubmit}
+                initialValues={interactiveValues}
+              />
+
+              {/* Preview Modal */}
+              {showPreview && (
+                <PreviewModal
+                  tableRows={[]}
+                  alignedGoal={loanAlignedGoal}
+                  benefitsStates={loanBenefitsStates}
+                  considerationsStates={loanConsiderationsStates}
+                  benefitsOrder={loanBenefitsOrder}
+                  considerationsOrder={loanConsiderationsOrder}
+                  activeStrategy={activeStrategy}
+                  interactiveValues={interactiveValues}
+                  onClose={() => setShowPreview(false)}
+                />
+              )}
+              </DndContext>
+            )}
+          </div>
         </div>
       </div>
-    </DndContext>
+    </div>
   );
 }
 
