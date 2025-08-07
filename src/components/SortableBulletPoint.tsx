@@ -6,6 +6,7 @@ import InteractiveBulletPoint from './InteractiveBulletPoint';
 interface SortableBulletPointProps {
   id: string;
   text: string;
+  customContent?: React.ReactNode;
   summary?: string;
   status: 'pending' | 'approved' | 'rejected';
   onStatusChange: (id: string, status: 'pending' | 'approved' | 'rejected') => void;
