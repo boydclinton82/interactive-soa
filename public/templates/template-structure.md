@@ -15,31 +15,18 @@
 {{/hasTable}}
 
 {{#hasAlignedGoal}}
-**Aligned goal**
 {{alignedGoal}}
 {{/hasAlignedGoal}}
 
 {{#hasBenefits}}
-**Why this benefits you**
 {{#approvedBenefits}}
-{{#hasSummary}}
-• **{{summary}}** - {{text}}
-{{/hasSummary}}
-{{^hasSummary}}
 • {{text}}
-{{/hasSummary}}
 {{/approvedBenefits}}
 {{/hasBenefits}}
 
 {{#hasConsiderations}}
-**Things you should consider**
 {{#approvedConsiderations}}
-{{#hasSummary}}
-• **{{summary}}** - {{text}}
-{{/hasSummary}}
-{{^hasSummary}}
 • {{text}}
-{{/hasSummary}}
 {{/approvedConsiderations}}
 {{/hasConsiderations}}
 ```
@@ -52,31 +39,18 @@
 {{subtitle}}
 
 {{#hasAlignedGoal}}
-**Aligned goal**
 {{alignedGoal}}
 {{/hasAlignedGoal}}
 
 {{#hasBenefits}}
-**Why this benefits you**
 {{#approvedBenefits}}
-{{#hasSummary}}
-• **{{summary}}** - {{text}}
-{{/hasSummary}}
-{{^hasSummary}}
 • {{text}}
-{{/hasSummary}}
 {{/approvedBenefits}}
 {{/hasBenefits}}
 
 {{#hasConsiderations}}
-**Things you should consider**
 {{#approvedConsiderations}}
-{{#hasSummary}}
-• **{{summary}}** - {{text}}
-{{/hasSummary}}
-{{^hasSummary}}
 • {{text}}
-{{/hasSummary}}
 {{/approvedConsiderations}}
 {{/hasConsiderations}}
 ```
