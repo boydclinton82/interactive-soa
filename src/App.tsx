@@ -1117,10 +1117,15 @@ function App() {
                 <PreviewModal
                   tableRows={superTableRows}
                   alignedGoal={alignedGoal}
+                  loanAlignedGoal={loanAlignedGoal}
                   benefitsStates={benefitsStates}
                   considerationsStates={considerationsStates}
+                  loanBenefitsStates={loanBenefitsStates}
+                  loanConsiderationsStates={loanConsiderationsStates}
                   benefitsOrder={benefitsOrder}
                   considerationsOrder={considerationsOrder}
+                  loanBenefitsOrder={loanBenefitsOrder}
+                  loanConsiderationsOrder={loanConsiderationsOrder}
                   activeStrategy={activeStrategy}
                   interactiveValues={interactiveValues}
                   onClose={() => setShowPreview(false)}
@@ -1380,11 +1385,16 @@ function App() {
               {showPreview && (
                 <PreviewModal
                   tableRows={[]}
-                  alignedGoal={loanAlignedGoal}
-                  benefitsStates={loanBenefitsStates}
-                  considerationsStates={loanConsiderationsStates}
-                  benefitsOrder={loanBenefitsOrder}
-                  considerationsOrder={loanConsiderationsOrder}
+                  alignedGoal={alignedGoal}
+                  loanAlignedGoal={loanAlignedGoal}
+                  benefitsStates={benefitsStates}
+                  considerationsStates={considerationsStates}
+                  loanBenefitsStates={loanBenefitsStates}
+                  loanConsiderationsStates={loanConsiderationsStates}
+                  benefitsOrder={benefitsOrder}
+                  considerationsOrder={considerationsOrder}
+                  loanBenefitsOrder={loanBenefitsOrder}
+                  loanConsiderationsOrder={loanConsiderationsOrder}
                   activeStrategy={activeStrategy}
                   interactiveValues={interactiveValues}
                   onClose={() => setShowPreview(false)}

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import VariableBox from './VariableBox';
+import { prepareDocumentData, generateFilename } from '../services/documentDataService';
+import { exportToWord, validateDocumentData, previewExportData } from '../services/wordExportService';
 
 interface TableRow {
   id: string;
@@ -28,10 +30,15 @@ interface ComplianceIssue {
 interface PreviewModalProps {
   tableRows: TableRow[];
   alignedGoal: string;
+  loanAlignedGoal: string;
   benefitsStates: BulletPointState[];
   considerationsStates: BulletPointState[];
+  loanBenefitsStates: BulletPointState[];
+  loanConsiderationsStates: BulletPointState[];
   benefitsOrder: string[];
   considerationsOrder: string[];
+  loanBenefitsOrder: string[];
+  loanConsiderationsOrder: string[];
   activeStrategy: 'consolidation' | 'loanRepayment';
   interactiveValues?: {[key: string]: string};
   onClose: () => void;
@@ -40,16 +47,23 @@ interface PreviewModalProps {
 const PreviewModal: React.FC<PreviewModalProps> = ({
   tableRows,
   alignedGoal,
+  loanAlignedGoal,
   benefitsStates,
   considerationsStates,
+  loanBenefitsStates,
+  loanConsiderationsStates,
   benefitsOrder,
   considerationsOrder,
+  loanBenefitsOrder,
+  loanConsiderationsOrder,
   activeStrategy,
   interactiveValues = {},
   onClose
 }) => {
   const [showComplianceIssues, setShowComplianceIssues] = useState(false);
   const [complianceIssues, setComplianceIssues] = useState<ComplianceIssue[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Function to render text with interactive elements for loan repayment strategy
   const renderTextWithInteractive = (text: string, id: string) => {
@@ -124,6 +138,77 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
   const populatedRows = tableRows.filter(row => 
     row.fundName.trim() || row.owner.trim() || row.typeOfRollover.trim()
   );
+
+  // Export to Word functionality
+  const handleExportToWord = async () => {
+    setIsExporting(true);
+    setExportStatus(null);
+
+    try {
+      // Prepare document data
+      const documentData = prepareDocumentData({
+        activeStrategy,
+        superTableRows: tableRows,
+        alignedGoal,
+        loanAlignedGoal,
+        benefitsStates,
+        considerationsStates,
+        loanBenefitsStates,
+        loanConsiderationsStates,
+        benefitsOrder,
+        considerationsOrder,
+        loanBenefitsOrder,
+        loanConsiderationsOrder,
+        interactiveValues
+      });
+
+      // Validate document data
+      const validation = validateDocumentData(documentData);
+      
+      if (!validation.isValid) {
+        setExportStatus({
+          type: 'error',
+          message: `Export failed: ${validation.errors.join(', ')}`
+        });
+        return;
+      }
+
+      // Show warnings if any
+      if (validation.warnings.length > 0) {
+        console.warn('Export warnings:', validation.warnings);
+      }
+
+      // Preview data for debugging
+      previewExportData(documentData);
+
+      // Generate filename
+      const filename = generateFilename(activeStrategy);
+
+      // Export to Word
+      const result = await exportToWord(activeStrategy, documentData, filename);
+
+      if (result.success) {
+        setExportStatus({
+          type: 'success',
+          message: `Document exported successfully: ${result.filename}`
+        });
+      } else {
+        setExportStatus({
+          type: 'error',
+          message: result.error || 'Export failed for unknown reason'
+        });
+      }
+
+    } catch (error) {
+      console.error('Export error:', error);
+      setExportStatus({
+        type: 'error',
+        message: `Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Simulated compliance checker
   const runComplianceCheck = () => {
@@ -287,6 +372,32 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={handleExportToWord}
+                disabled={isExporting}
+                className={`px-4 py-2 rounded font-tahoma text-xs transition-colors duration-200 flex items-center gap-2 ${
+                  isExporting
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {isExporting ? (
+                  <>
+                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Export to Word
+                  </>
+                )}
+              </button>
+              <button
                 onClick={toggleComplianceView}
                 className={`px-4 py-2 rounded font-tahoma text-xs transition-colors duration-200 ${
                   showComplianceIssues 
@@ -347,6 +458,34 @@ const PreviewModal: React.FC<PreviewModalProps> = ({
                   </>
                 )}
             </p>
+
+            {/* Export Status Message */}
+            {exportStatus && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`mb-6 p-4 rounded-lg border-l-4 ${
+                  exportStatus.type === 'success'
+                    ? 'bg-green-50 border-green-500 text-green-700'
+                    : 'bg-red-50 border-red-500 text-red-700'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {exportStatus.type === 'success' ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  )}
+                  <span className="font-tahoma text-sm font-medium">
+                    {exportStatus.message}
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
             {/* Table Preview - only show for consolidation strategy */}
             {activeStrategy === 'consolidation' && populatedRows.length > 0 && (
